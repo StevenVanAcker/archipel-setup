@@ -6,11 +6,29 @@ PARAM_ADMIN_PASSWORD=admin
 PARAM_HYPERVISOR_NAME=sweety
 PARAM_HYPERVISOR_PASSWORD=sweety
 
+apt-get --yes install ejabberd build-essential python-pip
 apt-get --yes install archipel-*
 apt-get --yes install python-dev python-libvirt
 apt-get --yes install qemu-kvm qemu-utils qemu-user 
+apt-get --yes install micro-httpd
 
-# create ejabberd.cfg {{{
+# add FQDN to /etc/hosts
+echo "0.0.0.0    $PARAM_FQDN" >> /etc/hosts
+
+# setup ejabberd key and certificate
+openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=US/ST=Denial/L=Springfield/O=Dis/CN=$PARAM_FQDN" -keyout /etc/ejabberd/privkey.pem -out /etc/ejabberd/ejabberd.pem
+cat /etc/ejabberd/privkey.pem >> /etc/ejabberd/ejabberd.pem
+rm /etc/ejabberd/privkey.pem
+
+# add user admin
+ejabberdctl register $PARAM_ADMIN_NAME $PARAM_FQDN $PARAM_ADMIN_PASSWORD
+
+# add hypervisor account
+ejabberdctl register $PARAM_HYPERVISOR_NAME $PARAM_FQDN $PARAM_HYPERVISOR_PASSWORD
+
+# ejabberd config after installation
+function create_ejabberd_config() { #{{{
+PARAM_ACCESS_REGISTER=$1
 cat > /etc/ejabberd/ejabberd.cfg <<EOF
 %%%
 %%%               ejabberd configuration file
@@ -137,9 +155,7 @@ cat > /etc/ejabberd/ejabberd.cfg <<EOF
 %%%   =======
 %%%   REGISTRATION
 
-% FIXME: first line is needed after install, second line is needed DURING install
-{access, register, [{allow, all}]}.
-% {access, register, [{allow, admin}, {deny, all}]}.
+$PARAM_ACCESS_REGISTER
 {registration_timeout, infinity}.
 
 %%%   =======
@@ -184,30 +200,21 @@ cat > /etc/ejabberd/ejabberd.cfg <<EOF
   {mod_admin_extra, []}
  ]}.
 EOF
+/etc/init.d/ejabberd restart
+}
 #}}}
+create_ejabberd_config '{access, register, [{allow, all}]}.'
 
-# add FQDN to /etc/hosts
-echo "0.0.0.0    $PARAM_FQDN" >> /etc/hosts
-
-# setup key and certificate
-# openssl req -new -x509 -passin pass: -newkey rsa:1024 -days 3650 -keyout /etc/ejabberd/privkey.pem -out /etc/ejabberd/ejabberd.pem
-openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=US/ST=Denial/L=Springfield/O=Dis/CN=$PARAM_FQDN" -keyout /etc/ejabberd/privkey.pem -out /etc/ejabberd/ejabberd.pem
-# openssl rsa -in /etc/ejabberd/privkey.pem -out /etc/ejabberd/privkey.pem
-cat /etc/ejabberd/privkey.pem >> /etc/ejabberd/ejabberd.pem
-rm /etc/ejabberd/privkey.pem
-
-# FIXME: self-signed certificate auto param
-
-# add user admin
-ejabberdctl register $PARAM_ADMIN_NAME $PARAM_FQDN $PARAM_ADMIN_PASSWORD
-
-# add hypervisor account
-ejabberdctl register $PARAM_HYPERVISOR_NAME $PARAM_FQDN $PARAM_HYPERVISOR_PASSWORD
-
-# FIXME: automate this
 # Download and unpack http://nightlies.archipelproject.org/latest-archipel-client.tar.gz
-# python -m SimpleHTTPServer
-# connect to localhost:8000
+rmdir /var/www
+d=$(mktemp -d)
+pushd $d
+wget -O latest-archipel-client.tar.gz http://nightlies.archipelproject.org/latest-archipel-client.tar.gz
+tar -xf latest-archipel-client.tar.gz
+rm latest-archipel-client.tar.gz
+mv * /var/www
+popd
+rmdir $d
 
 # installing archipel-agent
 easy_install apscheduler xmpppy sqlalchemy numpy
@@ -710,6 +717,9 @@ archipel-adminaccounts --jid=$PARAM_ADMIN_NAME@$PARAM_FQDN --password=$PARAM_ADM
 
 # (re)starting archipel
 /etc/init.d/archipel restart
+
+# register archipel to start at boot
+update-rc.d archipel defaults
 
 # selfcheck
 archipel-testxmppserver --jid=$PARAM_ADMIN_NAME@$PARAM_FQDN --password=$PARAM_ADMIN_PASSWORD
