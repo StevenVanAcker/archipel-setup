@@ -26,6 +26,8 @@ ejabberdctl register $PARAM_ADMIN_NAME $PARAM_FQDN $PARAM_ADMIN_PASSWORD
 # add hypervisor account
 ejabberdctl register $PARAM_HYPERVISOR_NAME $PARAM_FQDN $PARAM_HYPERVISOR_PASSWORD
 
+ejabberdctl add_rosteritem $PARAM_ADMIN_NAME $PARAM_FQDN $PARAM_HYPERVISOR_NAME $PARAM_FQDN $PARAM_HYPERVISOR_NAME . .
+
 # ejabberd config after installation
 function create_ejabberd_config() { #{{{
 PARAM_ACCESS_REGISTER=$1
@@ -723,3 +725,5 @@ update-rc.d archipel defaults
 
 # selfcheck
 archipel-testxmppserver --jid=$PARAM_ADMIN_NAME@$PARAM_FQDN --password=$PARAM_ADMIN_PASSWORD
+
+
