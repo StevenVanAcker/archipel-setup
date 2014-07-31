@@ -9,7 +9,7 @@ PARAM_HYPERVISOR_PASSWORD=sweety
 apt-get --yes install ejabberd build-essential python-pip
 apt-get --yes install archipel-*
 apt-get --yes install python-dev python-libvirt
-apt-get --yes install qemu-kvm qemu-utils qemu-user 
+apt-get --yes install qemu-kvm qemu-utils qemu-user libvirt-bin
 apt-get --yes install micro-httpd
 
 # add FQDN to /etc/hosts
